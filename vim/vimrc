@@ -879,9 +879,7 @@ autocmd FileType c,cpp,java,javascript,html,ruby,python,pandoc
       \ autocmd BufWritePre <buffer> :call StripTrailingWhitespaces()
 
 " highlight trailing whitespaces
-highlight ExtraWhitespace ctermbg=red guibg=red
-match ExtraWhitespace /\s\+$/
-
+highlight ExtraWhitespace ctermbg=red guibg=#fa5252
 augroup trailing_whitespaces
   autocmd!
   autocmd FileType GV,gitmessengerpopup,fugitive highlight clear ExtraWhitespace
@@ -2042,6 +2040,9 @@ let g:ale_emit_conflict_warnings = 0
 " Change default keymapping to <C-_> (default is <C-l>)
 nmap <silent> <C-_> <Plug>(pydocstring)
 
+" do not automatically 'after-' configure python indent
+let g:pymode_indent = 0
+
 " disable code folding by default
 let g:pymode_folding = 0
 
@@ -2232,6 +2233,8 @@ augroup FugitiveAddon
   autocmd FileType fugitive    nmap     <buffer> g=          ggVG=zM
   " [,gd] diffvsplit
   autocmd FileType fugitive    nmap     <buffer> <leader>gd  dv
+  " [gp] (preview with quickui)
+  autocmd FileType fugitive    nmap     <buffer> <silent> gp   :<C-u>call <SID>FugitivePreview()<CR>
 
   " when git index is updated via hunk stage operation, reload fugitive buffers
   if exists('*timer_start')  " 7.4.1578+
@@ -2241,6 +2244,17 @@ augroup END
 
 function! ReloadFugitiveBlobs(...) abort
   WinDo if bufname('%') =~ '^fugitive://' | :e | endif
+endfunction
+
+function! <SID>FugitivePreview() abort
+  let l:path = fugitive#StatusCfile()
+  if empty(l:path) | return | endif
+  let l:line = system(printf("git -c pager.diff='' diff -U0 %s", shellescape(l:path)) .
+        \ " | grep -Po '^\\+\\+\\+ ./\\K.*|^@@ -[0-9]+(,[0-9]+)? \\+\\K[0-9]+(?=(,[0-9]+)? @@)' ")
+  "echom [l:path, l:line]
+  if v:shell_error | let l:line = 1 | endif
+  let l:winid = quickui#preview#open(l:path, {'cursor': str2nr(l:line), 'number': 1, 'persist': 0})
+  "call quickui#core#win_execute(l:winid, '')
 endfunction
 
 " highlights for fugitive
@@ -2478,9 +2492,15 @@ if has_key(g:plugs, 'coc.nvim')
     endif
   endfunction
 
-  " coc-explorer (see coc-settings.json)
+  " coc-explorer (see coc-settings.json for keymaps and general config)
   command! -nargs=0 CocExplorer  :CocCommand explorer
   nmap <leader>E  :CocExplorer<CR>
+
+  "augroup CocExplorerRefresh
+  "  autocmd!
+  "  " Trigger refresh when the coc-explorer window gets the focus (we assume lambda & timer are available in neovim/vim8)
+  "  autocmd WinEnter \[coc-explorer\]*   call timer_start(0, { -> coc#rpc#request('doKeymap', ['explorer-action-n-r'])})
+  "augroup end
 
 endif
 
