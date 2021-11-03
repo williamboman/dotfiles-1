@@ -494,9 +494,16 @@ _G.LspAutoFormattingStart = function ()
   vim.notify("Lsp Auto-Formatting has turned on.")
 end
 _G.LspAutoFormattingTrigger = function ()
+  -- Disable on some files (e.g., external packages)
+  if string.find(vim.fn.bufname(), '/site-packages/') then
+    return false
+  end
+  -- TODO: Enable only on the current project specified by PATH.
   if vim.tbl_count(vim.lsp.buf_get_clients()) > 0 then
     vim.lsp.buf.formatting_sync({}, 1000)
+    return true
   end
+  return false
 end
 _G.LspAutoFormattingStop = function ()
   vim.cmd [[ autocmd! LspAutoFormatting ]]
