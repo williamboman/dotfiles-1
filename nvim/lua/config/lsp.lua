@@ -449,3 +449,56 @@ vim.defer_fn(function()
     vim.cmd [[ command! -nargs=0 Notifications  :Telescope notify ]]
   end
 end, 0)
+
+-------------------------------
+-- Formatting and Code actions
+-------------------------------
+-- @see https://github.com/jose-elias-alvarez/null-ls.nvim/blob/main/doc/CONFIG.md
+-- @see https://github.com/jose-elias-alvarez/null-ls.nvim/blob/main/doc/BUILTINS.md
+-- @see ~/.vim/plugged/null-ls.nvim/lua/null-ls/builtins
+local null_ls = require("null-ls")
+null_ls.config({
+  sources = {
+    -- Formatting
+    -- TODO: Validate and warn if the cmdline program is missing.
+    null_ls.builtins.formatting.prettier,
+    null_ls.builtins.formatting.yapf,   -- for python (pip install yapf)
+    null_ls.builtins.formatting.isort,  -- for python (pip install isort)
+  },
+  -- Debug mode: see ~/.cache/nvim/null-ls.log
+  debug = false,
+})
+lspconfig["null-ls"].setup { on_attach = on_attach }
+
+
+-- FormattingOptions: @see https://microsoft.github.io/language-server-protocol/specifications/specification-3-17/#formattingOptions
+vim.cmd [[
+command! LspFormatSync        lua vim.lsp.buf.formatting_sync({}, 5000)
+command! -range=0 Format      LspFormat
+]]
+
+-- Automatic formatting
+vim.cmd [[
+augroup LspAutoFormatting
+augroup END
+command! LspAutoFormattingOn      lua _G.LspAutoFormattingStart()
+command! LspAutoFormattingOff     lua _G.LspAutoFormattingStop()
+]]
+_G.LspAutoFormattingStart = function ()
+  vim.cmd [[
+  augroup LspAutoFormatting
+    autocmd!
+    autocmd BufWritePre *    :lua _G.LspAutoFormattingTrigger()
+  augroup END
+  ]]
+  vim.notify("Lsp Auto-Formatting has turned on.")
+end
+_G.LspAutoFormattingTrigger = function ()
+  if vim.tbl_count(vim.lsp.buf_get_clients()) > 0 then
+    vim.lsp.buf.formatting_sync({}, 1000)
+  end
+end
+_G.LspAutoFormattingStop = function ()
+  vim.cmd [[ autocmd! LspAutoFormatting ]]
+  vim.notify("Lsp Auto-Formatting has been turned off.", 'warn')
+end
